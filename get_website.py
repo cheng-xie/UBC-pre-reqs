@@ -1,10 +1,12 @@
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 from time import sleep
+import re
+import random
 
 domain = 'https://courses.students.ubc.ca'
 url = 'https://courses.students.ubc.ca/cs/main?pname=subjarea&tname=subjareas&req=1&dept=CPSC' # write the url here
-write_file = './data/DATA1.txt'
+write_file = './graphical-site/data/DATA2.txt'
 
 # open socket to webpage
 usock = urlopen(url)
@@ -21,7 +23,8 @@ course_names = []
 for course in soup.find_all('td'):
     course_soup = BeautifulSoup(str(course), 'html.parser')
     for link in course_soup.find_all('a'):
-        s = str(link.get('href'))
+        # start a new jsession
+        s = ''.join('?'.join(re.compile('jsessionid=[A-Z0-9]+\?').split(str(link.get('href')))))
         if '&course=' in s:
             print(s)
             course_links.append(s)
@@ -35,12 +38,18 @@ prereq_matrix = [[0]*len(course_links) for _ in range(0, len(course_links))]
 
 # loop over course links finding 
 for i in range(0, len(course_links)):
-    sleep(1)
+    sleep(0.5)
     course_url = domain + course_links[i]
-
-    usock = urlopen(course_url)
-    course_data = usock.read()
-    usock.close()
+    try:
+        usock = urlopen(course_url)
+        course_data = usock.read()
+        usock.close()
+    except:
+        sleep(1)
+        print(course_url)
+        usock = urlopen(course_url)
+        course_data = usock.read()
+        usock.close()
 
     course_soup = BeautifulSoup(str(course_data), 'html.parser')
 
@@ -70,5 +79,8 @@ for i in range(0, len(course_links)):
     print('\n' + str(i) + '\n')
 
 print(prereq_matrix)
-#with open(write_file, 'w') as output_file:
-#    output_file.write()
+
+with open(write_file, 'w+') as output_file:
+    start_pos = [[random.randint(100,500), random.randint(100,500)] for _ in range(0, len(course_names))]
+    output = 'function DATA_TEST1(){{ this.matrix = {}; this.node_texts = {}; this.starting_positions = {} }}'.format(prereq_matrix, course_names, start_pos)
+    output_file.write(output)
