@@ -1,24 +1,61 @@
-var TextNode = function(text, position){
-    this.color  = createjs.Graphics.getHSL(Math.random()*360, 90, 30);
-
-	this.textObj = new createjs.Text(text, "20px Arial", this.color);
-	this.textObj.x = position[0];
-	this.textObj.y = position[1];
+var TextNode = function(stage, text, position){
+    this.hue = Math.random()*300 + 90;
+    this.defColor = createjs.Graphics.getHSL(this.hue, 20, 70); 
+    
+	this.textObj = new createjs.Text(text, "20px Arial", this.defColor);
+	this.textObj.x = 0;
+	this.textObj.y = 0;
     
     this.circleObj = new createjs.Shape();
-    this.circleObj.graphics.beginFill(this.color).drawCircle(0, 0, 10);
-    this.circleObj.x = position[0];
-    this.circleObj.y = position[1];
-	
-	this.movePosition = function(delta){
-		this.textObj.x += delta[0];
-		this.textObj.y += delta[1];
-	    this.circleObj.x += delta[0];
-		this.circleObj.y += delta[1];
+    this.circleObj.graphics.beginFill(this.defColor).drawCircle(0, 0, 10);
+    this.circleObj.x = 0;
+    this.circleObj.y = 0;
+
+	this.container = new createjs.Container();
+    this.container.x = position[0];
+    this.container.y = position[1];
+    this.container.addChild(this.textObj, this.circleObj);
+
+    this.container.physics_enabled = true;
+    this.container.selected = false;
+
+    stage.addChild(this.container);
+
+    this.container.on("mousedown", function(evt){
+        evt.currentTarget.physics_enabled = false;
+        console.log("Disabled");
+    });
+
+    this.container.on("pressmove", function(evt){
+        evt.currentTarget.x = evt.stageX;
+        evt.currentTarget.y = evt.stageY;
+        stage.update();
+        console.log("Moved");
+    });
+
+    this.container.on("pressup", function(evt){
+        evt.currentTarget.physics_enabled = true;
+        console.log("Up");
+    });
+
+    this.container.on("click", function(evt){
+        evt.currentTarget.selected = !evt.currentTarget.selected;
+    });
+
+    this.update = function(){
+        this.textObj.color = this.getColor();
+        this.circleObj.graphics.clear().beginFill(this.getColor()).drawCircle(0, 0, 10);
     };
-	
+
+	this.movePosition = function(delta){
+        if(this.container.physics_enabled){
+	        this.container.x += delta[0];
+            this.container.y += delta[1];
+        }
+    };
+
 	this.getPosition = function(){
-		return [this.textObj.x, this.textObj.y];
+		return [this.container.x, this.container.y];
 	};
 	
 	this.getTextObj = function(){
@@ -28,43 +65,114 @@ var TextNode = function(text, position){
     this.getCircleObj = function(){
         return this.circleObj;
     };
+
+    this.getContainer = function(){
+        return this.container;
+    };
+
+    this.isSelected = function(){
+        return this.container.selected;
+    };
+
+    this.getColor = function(){
+        var color  = createjs.Graphics.getHSL(this.hue, 20, 70);
+        if(this.isSelected()){
+            var color  = createjs.Graphics.getHSL(this.hue, 90, 40);
+        }
+        else{
+            var color  = createjs.Graphics.getHSL(this.hue, 20, 70); 
+        }
+        return color;
+    };
+
+    this.getText = function(){
+        return this.textObj.text;
+    }
 };
 
 var NodeEdge = function(stage, value, start, end){
-	this.value = value;
+    this.value = value;
 	this.start = start;
 	this.end = end;
 	this.lineObj = new createjs.Shape();
+    this.arrow = new createjs.Shape();
+
+    this.getColor = function(){
+        var color = createjs.Graphics.getHSL(230, 20, 70);
+
+        if(this.start.isSelected() && this.end.isSelected()){
+            color = createjs.Graphics.getHSL(120, 70, 50);
+        }
+        else if(this.start.isSelected()){
+            color = createjs.Graphics.getHSL(5, 70, 50);
+        }
+        else if(this.end.isSelected()){
+            color = createjs.Graphics.getHSL(230, 70, 50);
+        }
+        else{
+            color = createjs.Graphics.getHSL(230, 20, 70);
+        }
+        return color;
+    };
+    
+    this.drawArrow = function(radian, x, y) {
+        var ARROW_SIZE = 10;
+        var arrow = new createjs.Shape();
+        arrow.graphics.setStrokeStyle(1)
+        arrow.graphics.beginStroke(this.getColor());
+        arrow.graphics.moveTo(-ARROW_SIZE, +ARROW_SIZE/2);
+        arrow.graphics.lineTo(0, 0);
+        arrow.graphics.lineTo(-ARROW_SIZE, -ARROW_SIZE/2);
+        var degree = radian / Math.PI * 180 + 180;
+        arrow.x = x;
+        arrow.y = y;
+        arrow.rotation = degree;
+        return arrow;
+    };
 	
-	if(value != 0){
+    if(value != 0){
 		this.lineObj = new createjs.Shape();
 		this.lineObj.graphics.setStrokeStyle(1);
-		this.lineObj.graphics.beginStroke("blue");
-		this.lineObj.graphics.moveTo(start.getPosition()[0], start.getPosition()[1]);
-		this.lineObj.graphics.lineTo(end.getPosition()[0], end.getPosition()[1]);
-		stage.addChild(this.lineObj);
+		this.lineObj.graphics.beginStroke(this.getColor());
+
+        startp = this.start.getPosition();
+        endp = this.end.getPosition();
+        midp = [(endp[0] + startp[0])/2, (endp[1] + startp[1])/2];
+
+        this.lineObj.graphics.moveTo(startp[0], startp[1]);
+		this.lineObj.graphics.lineTo(endp[0], endp[1]);
+        this.arrow = this.drawArrow( Math.atan2( (endp[1]-startp[1]), (endp[0]-startp[0]) ), midp[0], midp[1]);
+
+        stage.addChild(this.lineObj);
+        stage.addChild(this.arrow);
 	}
-	
+
 	this.getLineObj = function(){
 		return this.lineObj;
 	};
-	
-	this.update = function(stage){
+
+    this.update = function(stage){
 		stage.removeChild(this.lineObj);
+        stage.removeChild(this.arrow);
 		this.lineObj = new createjs.Shape();
 		this.lineObj.graphics.setStrokeStyle(1);
-		this.lineObj.graphics.beginStroke("blue");
-		this.lineObj.graphics.moveTo(start.getPosition()[0], start.getPosition()[1]);
-		this.lineObj.graphics.lineTo(end.getPosition()[0], end.getPosition()[1]);
-		stage.addChild(this.lineObj);
+		this.lineObj.graphics.beginStroke(this.getColor());
+        startp = this.start.getPosition();
+        endp = this.end.getPosition();
+        midp = [(endp[0] + startp[0])/2, (endp[1] + startp[1])/2];
+		this.lineObj.graphics.moveTo(startp[0], startp[1]);
+		this.lineObj.graphics.lineTo(endp[0], endp[1]);
+        this.arrow = this.drawArrow( Math.atan2( (endp[1]-startp[1]), (endp[0]-startp[0]) ), midp[0], midp[1]);
+		stage.addChild(this.arrow);
+        stage.addChild(this.lineObj);
 	};
 };
 
 var ForceDirectedGraph = function(matrix, stage, node_texts, canvas){
-	var REPULSIVE_CONSTANT = 20000;
+	var REPULSIVE_CONSTANT = 30000;
 	var SPRING_CONSTANT = 0.02;
     var BORDER_REPULSION_CONSTANT = 0.02;
-	
+
 	//matrix representation of force directed graph, the rows represent the end point of the edges
 	var graph_matrix = matrix;
 	var nodes = [];
@@ -74,10 +182,8 @@ var ForceDirectedGraph = function(matrix, stage, node_texts, canvas){
 
 	this.setup = function (starting_positions){
 		for(i = 0; i < node_texts.length; i++){
-			var text = new TextNode(node_texts[i], starting_positions[i]);
+			var text = new TextNode(stage, node_texts[i], starting_positions[i]);
 			nodes.push(text);
-			stage.addChild(nodes[nodes.length-1].getTextObj());
-	        stage.addChild(nodes[nodes.length-1].getCircleObj());
         }
 		for(i = 0; i < node_texts.length; i++){
 			for(j = 0; j < node_texts.length; j++){
@@ -87,7 +193,7 @@ var ForceDirectedGraph = function(matrix, stage, node_texts, canvas){
 			}
 		}
 	};
-	
+
 	this.tic = function (){
 		//Perform logic to update the positions of the nodes each tic.
 		for(i = 0; i < nodes.length; i++){
@@ -95,13 +201,14 @@ var ForceDirectedGraph = function(matrix, stage, node_texts, canvas){
 			attract = getAttraction(i);
             b_repulse = borderRepulsion(i);
 			nodes[i].movePosition([(repulse[0] + attract[0] + b_repulse[0]), (repulse[1] + attract[1] + b_repulse[1])]);
-		}
+		    nodes[i].update();
+        }
 		//update the edges accordingly
 		for(i = 0; i < edges.length; i++){
 			edges[i].update(stage);
 		}
 	};
-	
+
 	function getRepulsion(node_index){
 		/*
 		 * The summed repulsion of all the other nodes of the graph.
@@ -120,7 +227,7 @@ var ForceDirectedGraph = function(matrix, stage, node_texts, canvas){
 		}
 		return delta;
 	}
-	
+
 	function getAttraction(node_index){
 		/*
 		 * The summed attraction of all the parent nodes of node_index.
@@ -139,7 +246,7 @@ var ForceDirectedGraph = function(matrix, stage, node_texts, canvas){
 		}
 		return delta;
 	}
-	
+
 	function borderRepulsion(node_index){
 		//TODO implement this function
         /*
@@ -148,22 +255,17 @@ var ForceDirectedGraph = function(matrix, stage, node_texts, canvas){
          */
         border_height = canvas.height;
         border_width = canvas.width;
-        console.log(border_height)
         delta = [0, 0];
         x_position = nodes[node_index].getPosition()[0];
         y_position = nodes[node_index].getPosition()[1];
         r = [0, 0];
         r[0] = x_position - border_width/2;
         r[1] = y_position - border_height/2;
-        console.log(r[0]);
-        console.log(r[1]);
         c = BORDER_REPULSION_CONSTANT;
 		delta[0] -= c*r[0];
 		delta[1] -= c*r[1]*border_width/border_height;
- 
-        console.log(delta);
+
         return delta;
     }
 };
-
 

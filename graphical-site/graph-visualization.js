@@ -7,8 +7,6 @@ function tick(event) {
     canvas.width  = window.innerWidth;
     canvas.height = window.innerHeight;
 	graph.tic();
-    stage.scaleX = stage.scaleX * 0.999;
-    stage.scaleY = stage.scaleY * 0.999;
 	stage.update(event);
 }
 
