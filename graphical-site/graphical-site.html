@@ -10,12 +10,22 @@
 <script type="text/javascript" src = "data/DATA2.js"></script>
 <script type="text/javascript" src = "force-directedGraph.js"></script>
 <script type="text/javascript" src = "graph-visualization.js"></script>
-
-<h1>JavaScript Can Change Images</h1>
+<link rel="stylesheet" href="style.css">
 </head>
 
 <body onload="init();" style = "background-color:lightgrey">
-  <canvas id="demoCanvas" width="800" height="500" style="background-color:white"></canvas>
+  <div id="cy">
+    <canvas id="demoCanvas" width="800" height="500" style="background-color:white"></canvas>
+  </div>
+<div class="config" id="config">
+      <div class="preamble">
+        <h1>UBC Course PreReq Map</h1>
+        <p>A force directed graph mapping UBC courses. Nodes represent courses and arrows point from prerequisites to the courses they lead to.</p>
+        <p>
+          Data updated: 23rd March 2016 <br>
+        </p>
+      </div>
+</div>
 </body>
 
 </html>

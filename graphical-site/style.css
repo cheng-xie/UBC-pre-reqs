@@ -1,0 +1,35 @@
+body {
+    font: 14px helvetica neue,helvetica,arial,sans-serif;
+    height: 100%;
+    overflow: hidden;
+    width: 100%;
+}
+
+#cy {
+    bottom: 0;
+    left: 0;
+    position: absolute;
+    right: 17em;
+    top: 0;
+}
+
+.config {
+    background: rgba(0, 0, 0, 0.75) none repeat scroll 0 0;
+    bottom: 0;
+    box-sizing: border-box;
+    color: #fff;
+    overflow: auto;
+    padding: 1em;
+    position: absolute;
+    right: 0;
+    top: 0;
+    transition-duration: 250ms;
+    transition-property: opacity;
+    transition-timing-function: ease-out;
+    width: 20em;
+    z-index: 1;
+}
+
+.preamble {
+    margin-bottom: 2em;
+}

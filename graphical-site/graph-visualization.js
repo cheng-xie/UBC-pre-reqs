@@ -15,7 +15,7 @@ function init(){
 	canvas = document.getElementById("demoCanvas");
 	
 	var data = new DATA_TEST1();
-	graph = new ForceDirectedGraph(data.matrix, stage, data.node_texts, canvas);
+	graph = new ForceDirectedGraph(canvas, stage, data.matrix, data.node_texts);
 	graph.setup(data.starting_positions);
 	
 	stage.update();
