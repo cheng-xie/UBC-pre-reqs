@@ -21,7 +21,7 @@ var TextNode = function(stage, text, position){
     this.circleObj.getRadius = function(){
         var radius  = 10;
         if(this.selected){
-            radius = 15;
+            radius = 12;
         }
         else{
             radius = 10; 
@@ -149,21 +149,19 @@ var NodeEdge = function(stage, value, start, end){
     
     this.drawArrow = function(radian, x, y) {
         var ARROW_SIZE = 10;
-        var arrow = new createjs.Shape();
-        arrow.graphics.setStrokeStyle(1)
-        arrow.graphics.beginStroke(this.getColor());
-        arrow.graphics.moveTo(-ARROW_SIZE, +ARROW_SIZE/2);
-        arrow.graphics.lineTo(0, 0);
-        arrow.graphics.lineTo(-ARROW_SIZE, -ARROW_SIZE/2);
+        this.arrow.graphics.setStrokeStyle(1)
+        this.arrow.graphics.beginStroke(this.getColor());
+        this.arrow.graphics.moveTo(-ARROW_SIZE, +ARROW_SIZE/2);
+        this.arrow.graphics.lineTo(0, 0);
+        this.arrow.graphics.lineTo(-ARROW_SIZE, -ARROW_SIZE/2);
         var degree = radian / Math.PI * 180 + 180;
-        arrow.x = x;
-        arrow.y = y;
-        arrow.rotation = degree;
-        return arrow;
+        this.arrow.x = x;
+        this.arrow.y = y;
+        this.arrow.rotation = degree;
     };
 	
     if(value != 0){
-		this.lineObj = new createjs.Shape();
+		this.lineObj.graphics.clear();
 		this.lineObj.graphics.setStrokeStyle(1);
 		this.lineObj.graphics.beginStroke(this.getColor());
 
@@ -173,7 +171,9 @@ var NodeEdge = function(stage, value, start, end){
 
         this.lineObj.graphics.moveTo(startp[0], startp[1]);
 		this.lineObj.graphics.lineTo(endp[0], endp[1]);
-        this.arrow = this.drawArrow( Math.atan2( (endp[1]-startp[1]), (endp[0]-startp[0]) ), midp[0], midp[1]);
+
+        this.arrow.graphics.clear();
+        this.drawArrow( Math.atan2( (endp[1]-startp[1]), (endp[0]-startp[0]) ), midp[0], midp[1]);
 
         stage.addChild(this.lineObj);
         stage.addChild(this.arrow);
@@ -184,9 +184,7 @@ var NodeEdge = function(stage, value, start, end){
 	};
 
     this.update = function(stage){
-		stage.removeChild(this.lineObj);
-        stage.removeChild(this.arrow);
-		this.lineObj = new createjs.Shape();
+		this.lineObj.graphics.clear();
 		this.lineObj.graphics.setStrokeStyle(1);
 		this.lineObj.graphics.beginStroke(this.getColor());
         startp = this.start.getPosition();
@@ -194,16 +192,15 @@ var NodeEdge = function(stage, value, start, end){
         midp = [(endp[0] + startp[0])/2, (endp[1] + startp[1])/2];
 		this.lineObj.graphics.moveTo(startp[0], startp[1]);
 		this.lineObj.graphics.lineTo(endp[0], endp[1]);
-        this.arrow = this.drawArrow( Math.atan2( (endp[1]-startp[1]), (endp[0]-startp[0]) ), midp[0], midp[1]);
-		stage.addChild(this.arrow);
-        stage.addChild(this.lineObj);
+        this.arrow.graphics.clear();
+        this.drawArrow( Math.atan2( (endp[1]-startp[1]), (endp[0]-startp[0]) ), midp[0], midp[1]);
 	};
 };
 
 var ForceDirectedGraph = function(canvas, stage, matrix, node_texts){
 	var REPULSIVE_CONSTANT = 50000;
-	var SPRING_CONSTANT = 0.02;
-    var BORDER_REPULSION_CONSTANT = 0.02;
+	var SPRING_CONSTANT = 0.045;
+    var BORDER_REPULSION_CONSTANT = 0.003;
 
 	//matrix representation of force directed graph, the rows represent the end point of the edges
 	var graph_matrix = matrix;
@@ -211,38 +208,45 @@ var ForceDirectedGraph = function(canvas, stage, matrix, node_texts){
 	var nodes = [];
 	var edges = [];
 
-    var graphContainer = new createjs.Container();
+    this.container = new createjs.Container();
+    this.container.x = 0;
+    this.container.y = 0;
 
 	this.setup = function (starting_positions){
+        border_height = canvas.height;
+        border_width = canvas.width;
 		for(i = 0; i < node_texts.length; i++){
-			var text = new TextNode(stage, node_texts[i], starting_positions[i]);
+			var text = new TextNode(this.container, node_texts[i], [starting_positions[i][0] * border_width, starting_positions[i][1] * border_height]);
 			nodes.push(text);
         }
 		for(i = 0; i < node_texts.length; i++){
 			for(j = 0; j < node_texts.length; j++){
 				if(graph_matrix[i][j] != 0){
-					edges.push(new NodeEdge(stage, graph_matrix[i][j], nodes[i], nodes[j]));
+					edges.push(new NodeEdge(this.container, graph_matrix[i][j], nodes[i], nodes[j]));
 				}
 			}
 		}
+        stage.addChild(this.container);
 	};
 
 	this.tic = function (){
 		//Perform logic to update the positions of the nodes each tic.
 		for(i = 0; i < nodes.length; i++){
-			repulse = getRepulsion(i);
-			attract = getAttraction(i);
-            p_attract = pointAttraction(i);
-			nodes[i].movePosition([(repulse[0] + attract[0] + p_attract[0]), (repulse[1] + attract[1] + p_attract[1])]);
+            forces = [];
+			forces.push(getNodeRepulsion(i));
+			forces.push(getNodeAttraction(i));
+            forces.push(getPointAttraction(i));
+            forces.push(getBorderRepulsion(i));
+			nodes[i].movePosition(forces.reduce( (prev, curr) => [prev[0] + curr[0], prev[1] + curr[1]] ));
 		    nodes[i].update();
         }
 		//update the edges accordingly
 		for(i = 0; i < edges.length; i++){
-			edges[i].update(stage);
+			edges[i].update(this.container);
 		}
 	};
 
-	function getRepulsion(node_index){
+	function getNodeRepulsion(node_index){
 		/*
 		 * The summed repulsion of all the other nodes of the graph.
 		 * Repulsion scales with inverse square of the distance between the nodes.
@@ -261,7 +265,7 @@ var ForceDirectedGraph = function(canvas, stage, matrix, node_texts){
 		return delta;
 	}
 
-	function getAttraction(node_index){
+	function getNodeAttraction(node_index){
 		/*
 		 * The summed attraction of all the parent nodes of node_index.
 		 * Based on Hooke's law, simple weighted distance.
@@ -280,7 +284,7 @@ var ForceDirectedGraph = function(canvas, stage, matrix, node_texts){
 		return delta;
 	}
 
-	function pointAttraction(node_index){
+	function getPointAttraction(node_index){
 		//TODO implement this function
         /*
          * Returns the delta position change generated by the
@@ -298,6 +302,21 @@ var ForceDirectedGraph = function(canvas, stage, matrix, node_texts){
 		delta[0] -= c*r[0];
 		delta[1] -= c*r[1]*border_width/border_height;
 
+        return delta;
+    }
+    
+    function getBorderRepulsion(node_index){
+        border_height = canvas.height;
+        border_width = canvas.width;
+        delta = [0, 0];
+        r = [(0 - nodes[node_index].getPosition()[0]),
+             (0 - nodes[node_index].getPosition()[1]),
+             (nodes[node_index].getPosition()[0] - (border_width - 60)),
+             (nodes[node_index].getPosition()[1] - border_height)];
+        f_r = r.map( x => 100/(1 + Math.exp(-x/22)) );
+
+        delta[0] = f_r[0] - f_r[2];
+        delta[1] = f_r[1] - f_r[3];
         return delta;
     }
 };
